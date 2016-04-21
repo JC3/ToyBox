@@ -21,11 +21,8 @@ adds new items, you will have to hide then re-show the GUI to force the buttons 
 
 require "defines"
 require "util"
-
-local GUI_TOY_BOX_BUTTON = "toy-box-button"
-local GUI_TOY_BOX_FRAME = "toy-box-frame"
-local GUI_ITEM_BUTTON_PREFIX = "toy-box-item-button-"
-local GUI_ITEM_STYLE_PREFIX = "toy-box-item-icons-"
+require "config"
+require "names"
 
 
 --[[
@@ -54,6 +51,17 @@ function debugDump(var, force)
       player.print(msg)
     end
   end
+end
+
+
+--[[
+Ensure global stuff is not nil. Simplifies things everywhere else.
+--]]
+
+function ensure_global_init ()
+
+	global.player_open_position = global.player_open_position or {}
+
 end
 
 
@@ -101,7 +109,7 @@ function ensure_item_info_initialized ()
 				stack_size = item.stack_size
 			end
 
-			g_item_info[GUI_ITEM_BUTTON_PREFIX..name] = ({
+			g_item_info[ITEM_BUTTON_NAME_PREFIX..name] = ({
 				item_name = name,
 				stack_size = stack_size
 			})
@@ -118,11 +126,11 @@ Create the GUI button for the given player.
 
 function init_for_player (player) 
 
-	if not player.gui.top[GUI_TOY_BOX_BUTTON] then
+	if not player.gui.top[MAIN_BUTTON_NAME] then
 		player.gui.top.add({
 			type = "button",
-			name = GUI_TOY_BOX_BUTTON,
-			style = "toy-box-button-style",
+			name = MAIN_BUTTON_NAME,
+			style = MAIN_BUTTON_STYLE,
 			caption = {"toy-box-button-collapsed-text"}
 		})
 	end
@@ -141,17 +149,19 @@ function build_gui (frame)
 	-- TODO: Sort items by category. For now just cram them all up there.
 	local item_table = frame.add({
 		type = "table",
-		name = "toy-box-item-table",
-		colspan = 20
+		name = ITEM_TABLE_NAME,
+		colspan = 20,
+		style = "slot_table_style"
 	})
 	
 	-- Add a button for every item we know about.
 	for button_name,info in pairs(g_item_info) do
 		item_table.add({
-			type = "button",
+			type = (USE_CHECKBOXES and "checkbox" or "button"),
 			name = button_name,
-			style = GUI_ITEM_STYLE_PREFIX..info.item_name
-		})
+			style = ITEM_BUTTON_STYLE_PREFIX..info.item_name,
+			state = true -- ignored if not USE_CHECKBOXES
+		}) 
 	end
 
 end
@@ -163,18 +173,37 @@ Hide or show the main GUI for the player. Also updates the text on the button wi
 
 function toggle_gui (player)
 
-	if player.gui.left[GUI_TOY_BOX_FRAME] then
-		player.gui.left[GUI_TOY_BOX_FRAME].destroy()
-		player.gui.top[GUI_TOY_BOX_BUTTON].caption = {"toy-box-button-collapsed-text"}
+	-- player position is saved on gui open so that we can close it when they move
+
+	if is_gui_present(player) then
+		player.gui.left[MAIN_FRAME_NAME].destroy()
+		player.gui.top[MAIN_BUTTON_NAME].caption = {"toy-box-button-collapsed-text"}
+		global.player_open_position[player.index] = nil
 	else
 		local frame = player.gui.left.add({
 			type = "frame",
-			name = GUI_TOY_BOX_FRAME
+			name = MAIN_FRAME_NAME
 		})
 		build_gui(frame)
-		player.gui.top[GUI_TOY_BOX_BUTTON].caption = {"toy-box-button-expanded-text"}
+		player.gui.top[MAIN_BUTTON_NAME].caption = {"toy-box-button-expanded-text"}
+		global.player_open_position[player.index] = player.position
 	end
 
+end
+
+
+--[[
+Check if the GUI currently exists.
+--]]
+
+function is_gui_present (player)
+
+	if player.gui.left[MAIN_FRAME_NAME] then
+		return true
+	else
+		return false
+	end
+	
 end
 
 
@@ -195,12 +224,53 @@ function item_button_clicked (player, info)
 end
 
 
+--[[
+Called on every tick. If player's have moved from their stored positions, closes
+their GUI.
+--]]
+
+function check_player_positions () 
+
+	for i,guipos in ipairs(global.player_open_position) do
+		
+		local curpos = game.players[i].position
+		local dx = guipos.x - curpos.x
+		local dy = guipos.y - curpos.y
+	
+		if (dx * dx + dy * dy >= GUI_CLOSE_DISTANCE * GUI_CLOSE_DISTANCE) then
+			if is_gui_present(game.players[i]) then
+				toggle_gui(game.players[i])
+				play_sound(game.players[i], BUTTON_CLICK_SOUND_NAME)
+				debugDump("toy-box: Player "..i.." moved, closing GUI.")
+			end
+		end
+		
+	end
+
+end
+
+--[[
+Play a sound. See sounds.lua.
+--]]
+
+function play_sound (player, sound)
+
+	player.surface.create_entity({name = sound, position = player.position})
+
+end
+
+
 -- event hooks ----------------------------------------------------------------
 
 script.on_init(function() 
-	for i,p in ipairs(game.players) do
+	ensure_global_init()
+	for i,p in pairs(game.players) do
 		init_for_player(p)
 	end
+end)
+
+script.on_event(defines.events.on_tick, function(event)
+	check_player_positions()
 end)
 
 script.on_event(defines.events.on_player_created, function(event)
@@ -210,13 +280,31 @@ end)
 script.on_event(defines.events.on_gui_click, function(event) 
 	local player = game.players[event.element.player_index]
 	local name = event.element.name
-	if (name == GUI_TOY_BOX_BUTTON) then
+	if (name == MAIN_BUTTON_NAME) then
 		toggle_gui(player)
 	else
 		-- otherwise check if it's an item button and if so, do the thing.
 		ensure_item_info_initialized()
 		if (g_item_info[name]) then
+			-- checkbox hack
+			if USE_CHECKBOXES then
+				play_sound(BUTTON_CLICK_SOUND_NAME)
+				event.element.state = true
+			end
+			-- end checkbox hack
 			item_button_clicked(player, g_item_info[name])
+		end
+	end
+end)
+
+script.on_configuration_changed(function(data) 
+	ensure_global_init() -- make sure globals initialized on version updates.
+	-- no matter what the old/new version, destroy the gui. new mods may have changed available items,
+	-- and updates to this mod may break styles (https://forums.factorio.com/viewtopic.php?f=25&t=23968).
+	for i,p in pairs(game.players) do
+		if is_gui_present(p) then
+			debugDump("toy-box: Configuration changed and game saved with GUI open. Destroying old GUI.", true)
+			toggle_gui(p)
 		end
 	end
 end)

@@ -21,6 +21,8 @@ toy-box-item-icons-X, where X is replaced with the item name. Couple of notes:
 --]]
 
 require "util"
+require "config"
+require "names"
 
 
 --[[
@@ -31,12 +33,12 @@ in the case of click / hover.
 function item_picture (icon, highlight) 
 	local pic = {
 		filename = icon,
-		priority = "extra-high",
 		width = 32,
-		height = 32,
-		x = 0,
-		y = 0
+		height = 32
 	}
+	if USE_CHECKBOXES then
+		pic.shift = { 0, -8 }
+	end
 	if highlight then
 		-- setting values > 1 seems to just make the image disappear. in any case this
 		-- is just temporary until i figure out how to draw a slot-style highlighted bg.
@@ -54,10 +56,6 @@ as in the case of click / hover.
 function item_graphical_set (icon, highlight) 
 	return {
 		type = "monolith",
-		top_monolith_border = 1,
-		right_monolith_border = 1,
-		bottom_monolith_border = 1,
-		left_monolith_border = 1,
 		monolith_image = item_picture(icon, highlight)
 	}
 end
@@ -72,7 +70,7 @@ function has_flag (flags, flag)
 	if not flags then
 		return false
 	end
-	for i,f in ipairs(flags) do
+	for _,f in pairs(flags) do
 		if f == flag then
 			return true
 		end
@@ -98,21 +96,26 @@ top of file.
 for _,types in pairs(data.raw) do
 	for _,entity in pairs(types) do
 		if entity.icon and probably_an_item(entity) then
-			local style = {
-				type = "button_style",
-				parent = "toy-box-item-button-base",
-				width = 32,
-				height = 32,
-				default_graphical_set = item_graphical_set(entity.icon, false),
-				hovered_graphical_set = item_graphical_set(entity.icon, true),
-				clicked_graphical_set = item_graphical_set(entity.icon, true)
-				--[[
-				default_background = item_picture(entity.icon, false),
-				hovered_background = item_picture(entity.icon, true),
-				clicked_background = item_picture(entity.icon, true)
-				--]]
-			}
-			data.raw["gui-style"].default["toy-box-item-icons-" .. entity.name] = style
+			if USE_CHECKBOXES then
+				local style = {
+					-- we base on checkbox, not button, because buttons mercilessly scale their images
+					type = "checkbox_style", 
+					parent = ITEM_BUTTON_BASE_STYLE,
+					checked = item_picture(entity.icon, false)
+				}
+				data.raw["gui-style"].default[ITEM_BUTTON_STYLE_PREFIX .. entity.name] = style
+			else
+				local style = {
+					-- we base on checkbox, not button, because buttons mercilessly scale their images
+					type = "button_style", 
+					parent = ITEM_BUTTON_BASE_STYLE,
+					default_graphical_set = item_graphical_set(entity.icon, false),
+					hovered_graphical_set = item_graphical_set(entity.icon, true),
+					clicked_graphical_set = item_graphical_set(entity.icon, true),
+					disabled_graphical_set = item_graphical_set(entity.icon, false)
+				}
+				data.raw["gui-style"].default[ITEM_BUTTON_STYLE_PREFIX .. entity.name] = style
+			end
 		end
 	end
 end
