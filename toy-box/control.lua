@@ -288,7 +288,7 @@ script.on_event(defines.events.on_gui_click, function(event)
 		if (g_item_info[name]) then
 			-- checkbox hack
 			if USE_CHECKBOXES then
-				play_sound(BUTTON_CLICK_SOUND_NAME)
+				play_sound(player, BUTTON_CLICK_SOUND_NAME)
 				event.element.state = true
 			end
 			-- end checkbox hack
