@@ -286,17 +286,7 @@ function rebuild_item_table (player, cat)
 			end
 		end
 		
-		-- Now find the size of the largest group.
-		local max_group_size = 0
-		for key,group in pairs(grouped_items) do
-			local size = table_length(group)
-			if size > max_group_size then
-				max_group_size = size
-			end
-		end
-		debugDump("toy-box: Grouping items, max group size is "..max_group_size)
-		
-		-- Now add things to the table, with appropriate placeholders.
+		-- Now add things to the table
 		for _,group in pairs(grouped_items) do
 			for button_name,info in pairs(group) do
 				item_table.add({
@@ -306,6 +296,7 @@ function rebuild_item_table (player, cat)
 					state = true -- ignored if not USE_CHECKBOXES
 				})
 			end
+			-- Placeholders to take up remaining elements in row
 			local count = table_length(group)
 			while count % column_count > 0 do
 				item_table.add({
