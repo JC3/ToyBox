@@ -51,7 +51,7 @@ Copied from Choumiko's TFC (https://forums.factorio.com/viewtopic.php?f=92&t=450
 --]]
 
 function debugDump(var, force)
-  if true or force then -- s/false/true when debugging
+  if false or force then -- s/false/true when debugging
     for i,player in pairs(game.players) do
       local msg
       if type(var) == "string" then
