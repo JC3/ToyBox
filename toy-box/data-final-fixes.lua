@@ -1,10 +1,6 @@
 --[[
 This idea of dynamically generated styles was copied from Outsider's Advanced Logistics System.
 https://forums.factorio.com/viewtopic.php?f=92&t=14388 
-
-TODO:
-  - Figure out how to keep button borders and background highlights.
-  - Figure out how to keep images from scaling.
   
 The code below goes through everything defined in data.raw and creates a button style named
 toy-box-item-icons-X, where X is replaced with the item name. Couple of notes:

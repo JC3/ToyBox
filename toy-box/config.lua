@@ -1,6 +1,5 @@
--- Checkboxes can display images without stretching them, but buttons have a left
--- click sound. I can't decide and am spending too much time on this. So for now
--- it's controllable here.
+-- Checkboxes can display images without stretching them, but the minecraft look
+-- is kinda cool. So it's controllable here, for now.
 
 USE_CHECKBOXES = true
 
