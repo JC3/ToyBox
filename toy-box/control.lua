@@ -11,9 +11,9 @@ that is more convenient than typing commands in the console.
 
 TODO:
 
-  - Provide a trash slot for discarding items.
   - Some interface for "give 1" instead of a whole stack. Can't read modifier key states
     in on_gui_click though.
+  - Finish graphical category buttons.  
 --]]
 
 require "defines"
@@ -82,8 +82,8 @@ function ensure_global_init ()
 	  category_view: last category viewed
 	--]]
 	global.player_data = global.player_data or {}
-	global.dumpster = global.dumpster or {}
-	global.bottomless = global.bottomless or {}
+	global.dumpster = global.dumpster or {}			-- this is a list of LuaEntities
+	global.bottomless = global.bottomless or {}		-- see bottomless_created()
 
 end
 
@@ -634,13 +634,13 @@ function show_settings_dialog (player)
 		
 		local mainflow = frame.add({
 			type = "flow",
-			name = "--toy-box-1",	-- must have a name for find_child
+			name = "--toy-box-637",	-- must have a name for find_child
 			direction = "vertical"
 		})
 
 		local maintable = mainflow.add({
 			type = "table",
-			name = "--toy-box-2",	-- must have a name for find_child
+			name = "--toy-box-643",	-- must have a name for find_child
 			style = "table_style",
 			colspan = 2
 		})
@@ -783,6 +783,11 @@ function close_settings_dialog (player, accept)
 end
 
 
+--[[
+Update behavior of normal and logistic dumpsters. Just empties the trash. Called
+periodically on dumpster entities, ent should be a LuaEntity.
+--]]
+
 function dumpster_update (ent)
 
 	ent.clear_items_inside()
@@ -790,12 +795,28 @@ function dumpster_update (ent)
 end
 
 
+--[[
+Called when dumpster built, adds to tracking list, ent should be a LuaEntity.
+
+Postconditions:
+  - Entity is in global.dumpster.
+--]]
+
 function dumpster_created (ent)
 
 	table.insert(global.dumpster, ent)
 
 end
 
+
+--[[
+Called when dumpster destroyed, removes from tracking list. Also removes the items
+inside it so the player doesn't get them back if we're between updates. The 'ent'
+should be a LuaEntity.
+
+Postconditions:
+  - Entity is no longer in global.dumpster.
+--]]
 
 function dumpster_destroyed (ent)
 
@@ -810,10 +831,24 @@ function dumpster_destroyed (ent)
 end
 
 
+--[[
+Update behavior of normal and logistic bottomless chests. Determines the item 
+the chest should be producing, if necessary, and fills the inventory with that
+item. Called periodically on bottomless chests entities, 'info' should be the
+table inserted by bottomless_created() -- see that function for details.
+
+The high level behavior this goes for is the first item a player inserts into
+a bottomless chest beceomes the item it produces. Also, once that is determined,
+any other items besides that one that are found in the chest are destroyed so
+they don't get in the way (I think this makes the in-game behavior of these
+chests a little more clean-cut and predictable).
+--]]
+
 function bottomless_update (info)
 
 	local ent = info.entity
 
+	-- If we don't know our item yet, figure it out.
 	if not info.item then
 		local contents = ent.get_inventory(defines.inventory.chest).get_contents()
 		for item,_ in pairs(contents) do
@@ -822,8 +857,9 @@ function bottomless_update (info)
 			debugDump("toy-box: Bottomless chest item set to "..item..":"..info.stack_size)
 			break
 		end
-	end
+	end -- info.item may be set now
 	
+	-- If we know our item now, fill 'er up.
 	if info.item then
 		local inv = ent.get_inventory(defines.inventory.chest)
 		-- remove rogue items
@@ -843,16 +879,33 @@ function bottomless_update (info)
 end
 
 
+--[[
+Called when bottomless chest built, adds to tracking list, ent should be a 
+LuaEntity. See code for info about what's added to global.bottomless.
+
+Postconditions:
+  - Information about entity is in global.bottomless.
+--]]
+
 function bottomless_created (ent)
 
 	table.insert(global.bottomless, {
-		entity = ent,
-		item = nil,
-		stack_size = nil
+		entity = ent,		-- The LuaEntity
+		item = nil,			-- bottomless_update will set this to the item
+		stack_size = nil	-- bottomless_update will set this, too
 	})
 
 end
 
+
+--[[
+Called when bottomless chest destroyed, removes from tracking list. Also removes
+the items inside it so the player doesn't get them back (since it'll probably 
+fill their inventory). The 'ent' should be a LuaEntity.
+
+Postconditions:
+  - Information about ent is no longer in global.bottomless.
+--]]
 
 function bottomless_destroyed (ent)
 
