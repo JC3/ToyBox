@@ -85,6 +85,9 @@ function ensure_global_init ()
 	global.dumpster = global.dumpster or {}			-- this is a list of LuaEntities
 	global.bottomless = global.bottomless or {}		-- see bottomless_created()
 
+	-- there's also global.to_chest_update and global.to_position_update, they
+	-- aren't initialized here, they're down in the script tick event handler.
+
 end
 
 
