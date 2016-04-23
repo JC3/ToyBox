@@ -14,6 +14,8 @@ toy-box-item-icons-X, where X is replaced with the item name. Couple of notes:
 	Checking for these flags is the only way I know of to test if an object is an item.
   - We want to do this in data-final-fixes so we get all items, and all items created by any
     mods the player may have loaded, too.
+	
+Also we do buttons with category icons here too, in a similar fashion.
 --]]
 
 require "util"
@@ -41,6 +43,21 @@ function item_picture (icon, highlight)
 		pic.tint = {r=0.5,g=0.5,b=0.5,a=1}
 	end
 	return pic
+end
+
+
+--[[
+Returns a picture table for category graphics.
+--]]
+
+function category_picture (icon) 
+	return {
+		filename = icon,
+		width = 64,
+		height = 64,
+		shift = { 0, -24 },
+		scale = 0.95
+	}
 end
 
 
@@ -114,4 +131,18 @@ for _,types in pairs(data.raw) do
 			end
 		end
 	end
+end
+
+
+--[[
+Go through all defined categories and add styles for the graphical category buttons.
+--]]
+
+for _,group in pairs(data.raw["item-group"]) do
+	local style = {
+		type = "checkbox_style",
+		parent = IMG_CATEGORY_BUTTON_BASE_STYLE,
+		checked = category_picture(group.icon)
+	}
+	data.raw["gui-style"].default[IMG_CATEGORY_BUTTON_STYLE_PREFIX .. string.upper(group.name)] = style
 end

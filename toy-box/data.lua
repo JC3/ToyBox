@@ -1,3 +1,7 @@
 require "prototypes.styles"
 require "prototypes.sounds"
 require "prototypes.fonts"
+require "prototypes.dumpster"
+require "prototypes.bottomless"
+require "prototypes.logistic-dumpster"
+require "prototypes.logistic-bottomless"

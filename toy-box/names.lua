@@ -15,6 +15,8 @@ DESCRIPTION_LABEL_STYLE = "toy-box-description-label-style"
 DIALOG_PADDING_LABEL_STYLE = "toy-box-left-padding-label-style"
 CATEGORY_BUTTON_STYLE = "toy-box-category-button-style"
 FUNCTION_BUTTON_STYLE = "toy-box-function-button-style"
+IMG_CATEGORY_BUTTON_BASE_STYLE = "toy-box-image-category-checkbox-base-style"
+IMG_CATEGORY_BUTTON_STYLE_PREFIX = "toy-box-image-category-icon-"
 
 -- GUI ELEMENTS
 
@@ -51,3 +53,9 @@ SETTING_NGROUPALL = "dont_group_all"
 
 BUTTON_CLICK_SOUND_NAME = "toy-box-button-sound"
 CATEGORY_FONT_NAME = "toy-box-category-font"
+
+-- ENTITIES, ICONS, RECIPES
+DUMPSTER_ENTITY_NAME = "toy-box-dumpster"
+BOTTOMLESS_ENTITY_NAME = "toy-box-bottomless"
+LOGISTIC_DUMPSTER_ENTITY_NAME = "toy-box-logistic-dumpster"
+LOGISTIC_BOTTOMLESS_ENTITY_NAME = "toy-box-logistic-bottomless"

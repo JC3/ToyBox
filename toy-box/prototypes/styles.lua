@@ -118,3 +118,24 @@ else
 		}}
 	}
 end
+
+function category_border_sprite (section)
+	return {
+		filename = "__toy-box__/graphics/button-66.png",
+		width = 66,
+		height = 66,
+		x = section * 66,
+		shift = {0, -24}
+	}
+end
+
+data.raw["gui-style"].default[IMG_CATEGORY_BUTTON_BASE_STYLE] = {
+	type = "checkbox_style",
+	parent = "checkbox_style",
+	width = 69,
+	height = 69,
+	default_background = category_border_sprite(0),
+	hovered_background = category_border_sprite(1),
+	clicked_background = category_border_sprite(2),
+	disabled_background = category_border_sprite(0)
+}

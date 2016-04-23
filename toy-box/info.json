@@ -1,9 +1,9 @@
 {
   "name": "toy-box",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "title": "Toy Box",
   "author": "JasonC",
   "contact": "",
   "homepage": "",
-  "description": "This adds a GUI for giving yourself items."
+  "description": "This adds a GUI for giving yourself items, as well as both a normal and logistics-enabled trash can and infinite item chest."
 }

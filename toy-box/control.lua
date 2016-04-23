@@ -1,9 +1,10 @@
 --[[
-toy-box-0.2.0, 2016-apr-22
+toy-box-0.2.1, 2016-apr-22
 
   0.1.0 - Initial release.
   0.1.1 - GUI cleanup.
   0.2.0 - Settings dialog, item categorization.
+  0.2.1 - Dumpster and bottomless chests. Moved default options to config.lua.
   
 This is a pretty simple mod that provides an interface for giving yourself items
 that is more convenient than typing commands in the console.
@@ -36,12 +37,12 @@ Default user settings. Must match key names from names.lua.
 --]]
 
 local DEFAULT_SETTINGS = {
-	autoclose = true,
-	no_vehicle_autoclose = true,
-	table_columns = 20,
-	group_items = true,
-	categorize_items = true,
-	dont_group_all = true
+	autoclose = DEFAULT_AUTOCLOSE,
+	no_vehicle_autoclose = DEFAULT_NO_VEHICLE_AUTOCLOSE,
+	table_columns = DEFAULT_TABLE_COLUMNS,
+	group_items = DEFAULT_GROUP_ITEMS,
+	categorize_items = DEFAULT_CATEGORIZE_ITEMS,
+	dont_group_all = DEFAULT_DONT_GROUP_ALL
 }
 
 
@@ -81,6 +82,8 @@ function ensure_global_init ()
 	  category_view: last category viewed
 	--]]
 	global.player_data = global.player_data or {}
+	global.dumpster = global.dumpster or {}
+	global.bottomless = global.bottomless or {}
 
 end
 
@@ -344,6 +347,16 @@ function build_gui (player, frame)
 				style = CATEGORY_BUTTON_STYLE,
 				caption = catinfo.description
 			})
+			--[[ coming in 0.2.3 
+			if catinfo.category ~= "" then
+				action_flow.add({
+					type = "checkbox",
+					name = bname,
+					style = IMG_CATEGORY_BUTTON_STYLE_PREFIX..catinfo.category,
+					state = true
+				})
+			end
+			--]]
 		end
 	end
 	
@@ -770,6 +783,90 @@ function close_settings_dialog (player, accept)
 end
 
 
+function dumpster_update (ent)
+
+	ent.clear_items_inside()
+
+end
+
+
+function dumpster_created (ent)
+
+	table.insert(global.dumpster, ent)
+
+end
+
+
+function dumpster_destroyed (ent)
+
+	for i,e in ipairs(global.dumpster) do
+		if e == ent then
+			ent.clear_items_inside()
+			table.remove(global.dumpster, i)
+			break
+		end
+	end
+
+end
+
+
+function bottomless_update (info)
+
+	local ent = info.entity
+
+	if not info.item then
+		local contents = ent.get_inventory(defines.inventory.chest).get_contents()
+		for item,_ in pairs(contents) do
+			info.item = item
+			info.stack_size = game.get_item_prototype(item).stack_size
+			debugDump("toy-box: Bottomless chest item set to "..item..":"..info.stack_size)
+			break
+		end
+	end
+	
+	if info.item then
+		local inv = ent.get_inventory(defines.inventory.chest)
+		-- remove rogue items
+		local contents = inv.get_contents()
+		for item,number in pairs(contents) do 
+			if item ~= info.item then
+				inv.remove({name=item,count=number})
+			end
+		end
+		-- fill chest
+		local stack = {name=info.item,count=info.stack_size}
+		while inv.can_insert(stack) do
+			inv.insert(stack)
+		end
+	end
+
+end
+
+
+function bottomless_created (ent)
+
+	table.insert(global.bottomless, {
+		entity = ent,
+		item = nil,
+		stack_size = nil
+	})
+
+end
+
+
+function bottomless_destroyed (ent)
+
+	for i,e in ipairs(global.bottomless) do
+		if e.entity == ent then
+			ent.clear_items_inside()
+			table.remove(global.bottomless, i)
+			break
+		end
+	end
+
+end
+
+
 -- event hooks ----------------------------------------------------------------
 
 script.on_init(function() 
@@ -780,7 +877,25 @@ script.on_init(function()
 end)
 
 script.on_event(defines.events.on_tick, function(event)
-	check_player_positions()
+	-- position check
+	if not global.to_position_check or global.to_position_check <= 1 then
+		check_player_positions()
+		global.to_position_check = POSITION_CHECK_INTERVAL
+	else
+		global.to_position_check = global.to_position_check - 1
+	end
+	-- chest update
+	if not global.to_chest_update or global.to_chest_update <= 1 then
+		for _,e in pairs(global.dumpster) do
+			dumpster_update(e)
+		end
+		for _,e in pairs(global.bottomless) do
+			bottomless_update(e)
+		end
+		global.to_chest_update = CHEST_UPDATE_INTERVAL - 1
+	else
+		global.to_chest_update = global.to_chest_update - 1
+	end
 end)
 
 script.on_event(defines.events.on_player_created, function(event)
@@ -814,6 +929,31 @@ script.on_event(defines.events.on_gui_click, function(event)
 		end
 	end
 end)
+
+script.on_event({defines.events.on_built_entity,defines.events.on_robot_built_entity}, function (event)
+	if event.created_entity.name == DUMPSTER_ENTITY_NAME or event.created_entity.name == LOGISTIC_DUMPSTER_ENTITY_NAME then
+		dumpster_created(event.created_entity)
+	elseif event.created_entity.name == BOTTOMLESS_ENTITY_NAME or event.created_entity.name == LOGISTIC_BOTTOMLESS_ENTITY_NAME then
+		bottomless_created(event.created_entity)
+	end
+end)
+
+script.on_event({defines.events.on_entity_died,defines.events.on_robot_pre_mined,defines.events.on_preplayer_mined_item}, function(event)
+	if event.entity.name == DUMPSTER_ENTITY_NAME or event.entity.name == LOGISTIC_DUMPSTER_ENTITY_NAME then
+		dumpster_destroyed(event.entity)
+	elseif event.entity.name == BOTTOMLESS_ENTITY_NAME or event.entity.name == LOGISTIC_BOTTOMLESS_ENTITY_NAME then
+		bottomless_destroyed(event.entity)
+	end
+end)
+
+function enable_if_researched (tech, recipe)
+	for i, player in ipairs(game.players) do 
+		if player.force.technologies[tech].researched then 
+			player.force.recipes[recipe].enabled = true
+			debugDump("toy-box: "..tech.." researched, enabling "..recipe..".", true)
+		end
+	end
+end
 
 script.on_configuration_changed(function(data) 
 
@@ -852,7 +992,18 @@ script.on_configuration_changed(function(data)
 			-- that got weird. sorry.
 			
 		end
+
+		if curv and curv >= "0.2.1" then
 		
+			debugDump("toy-box: Updating entity tables...", true)		
+			global.dumpster = global.dumpster or {}
+			global.bottomless = global.bottomless or {}
+
+			enable_if_researched("logistic-robotics", LOGISTIC_BOTTOMLESS_ENTITY_NAME)
+			enable_if_researched("construction-robotics", LOGISTIC_BOTTOMLESS_ENTITY_NAME)
+			enable_if_researched("logistic-system", LOGISTIC_DUMPSTER_ENTITY_NAME)
+			
+		end
 		--[[
 		if (oldv == nil or oldv <= "0.1.1") and (curv ~= nil and curv >= "0.2.0") then
 			debugDump("toy-box: Updating player data...", true)
